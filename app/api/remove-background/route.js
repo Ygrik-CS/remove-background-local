@@ -10,7 +10,6 @@ import sharp from 'sharp';
 export const runtime = 'nodejs';
 const execFileAsync = promisify(execFile);
 
-// Оставляем один вариант запуска для чистоты кода
 const runRembg = (inputPath, outputPath) =>
   execFileAsync(
     process.env.REMBG_CLI || 'rembg',
@@ -18,8 +17,7 @@ const runRembg = (inputPath, outputPath) =>
     { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
   );
 
-// Избавились от блока try...catch с помощью перехвата ошибки в цепочке промиса
-const safeUnlink = (filePath) => fs.unlink(filePath).catch(() => {});
+  const safeUnlink = (filePath) => fs.unlink(filePath).catch(() => {});
 
 export async function POST(request) {
   const formData = await request.formData();
@@ -37,7 +35,6 @@ export async function POST(request) {
     const arrayBuffer = await file.arrayBuffer();
     await fs.writeFile(inputPath, Buffer.from(arrayBuffer));
 
-    // Вызываем утилиту без вложенных try...catch
     await runRembg(inputPath, outputPath);
 
     const pngBuffer = await fs.readFile(outputPath);
@@ -73,7 +70,6 @@ export async function POST(request) {
       { status: 500 }
     );
   } finally {
-    // finally оставляем, так как временные файлы нужно удалять при любом исходе
     await Promise.all([safeUnlink(inputPath), safeUnlink(outputPath)]);
   }
 }
