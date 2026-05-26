@@ -8,44 +8,26 @@ import path from 'path';
 import sharp from 'sharp';
 
 export const runtime = 'nodejs';
-
 const execFileAsync = promisify(execFile);
-const pythonCommand = process.env.REMBG_PYTHON || 'python';
-const rembgCliCommand = process.env.REMBG_CLI || 'rembg';
 
-const runRembgModule = (command, inputPath, outputPath) =>
+// Оставляем один вариант запуска для чистоты кода
+const runRembg = (inputPath, outputPath) =>
   execFileAsync(
-    command,
-    ['-m', 'rembg.cli', 'i', inputPath, outputPath],
-    { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
-  );
-
-const runRembgCli = (command, inputPath, outputPath) =>
-  execFileAsync(
-    command,
+    process.env.REMBG_CLI || 'rembg',
     ['i', inputPath, outputPath],
     { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
   );
 
-const safeUnlink = async (filePath) => {
-  try {
-    await fs.unlink(filePath);
-  } catch (error) {
-    if (error?.code !== 'ENOENT') {
-      console.warn('Failed to remove temp file:', filePath, error);
-    }
-  }
-};
+// Избавились от блока try...catch с помощью перехвата ошибки в цепочке промиса
+const safeUnlink = (filePath) => fs.unlink(filePath).catch(() => {});
 
 export async function POST(request) {
   const formData = await request.formData();
   const file = formData.get('image');
+  const format = formData.get('format') || 'webp';
 
   if (!file || typeof file === 'string') {
-    return NextResponse.json(
-      { success: false, error: 'Image file is required.' },
-      { status: 400 }
-    );
+    return NextResponse.json({ success: false, error: 'Image file is required.' }, { status: 400 });
   }
 
   const inputPath = path.join(os.tmpdir(), `rembg-input-${randomUUID()}`);
@@ -55,44 +37,43 @@ export async function POST(request) {
     const arrayBuffer = await file.arrayBuffer();
     await fs.writeFile(inputPath, Buffer.from(arrayBuffer));
 
-    try {
-      await runRembgCli(rembgCliCommand, inputPath, outputPath);
-    } catch (error) {
-      if (error?.code !== 'ENOENT') {
-        throw error;
-      }
-
-      try {
-        await runRembgModule(pythonCommand, inputPath, outputPath);
-      } catch (fallbackError) {
-        if (fallbackError?.code === 'ENOENT' && pythonCommand === 'python') {
-          await runRembgModule('py', inputPath, outputPath);
-        } else {
-          throw fallbackError;
-        }
-      }
-    }
+    // Вызываем утилиту без вложенных try...catch
+    await runRembg(inputPath, outputPath);
 
     const pngBuffer = await fs.readFile(outputPath);
-    const webpBuffer = await sharp(pngBuffer).webp().toBuffer();
-    const base64Image = `data:image/webp;base64,${webpBuffer.toString('base64')}`;
+    let finalBuffer;
+    let mimeType;
 
-    return NextResponse.json({ success: true, resultUrl: base64Image });
+    if (format === 'jpeg' || format === 'jpg') {
+      finalBuffer = await sharp(pngBuffer)
+        .flatten({ background: { r: 255, g: 255, b: 255 } })
+        .jpeg({ quality: 90 })
+        .toBuffer();
+      mimeType = 'image/jpeg';
+    } else if (format === 'png') {
+      finalBuffer = pngBuffer;
+      mimeType = 'image/png';
+    } else {
+      finalBuffer = await sharp(pngBuffer).webp().toBuffer();
+      mimeType = 'image/webp';
+    }
+
+    const base64Image = `data:${mimeType};base64,${finalBuffer.toString('base64')}`;
+
+    return NextResponse.json({ 
+      success: true, 
+      resultUrl: base64Image, 
+      format: format === 'jpg' ? 'jpeg' : format 
+    });
+
   } catch (error) {
-    const stderr = error?.stderr ? error.stderr.toString().trim() : '';
-    const details = stderr ? stderr.slice(0, 500) : '';
-    const message =
-      error?.code === 'ENOENT'
-        ? 'Python/rembg not found. Install rembg, add Python Scripts to PATH, or set REMBG_CLI/REMBG_PYTHON.'
-        : details
-          ? `rembg error: ${details}`
-          : 'Background removal failed.';
     console.error('Background removal failed:', error);
     return NextResponse.json(
-      { success: false, error: message },
+      { success: false, error: 'Ошибка обработки. Убедитесь, что rembg установлен и доступен в PATH.' },
       { status: 500 }
     );
   } finally {
+    // finally оставляем, так как временные файлы нужно удалять при любом исходе
     await Promise.all([safeUnlink(inputPath), safeUnlink(outputPath)]);
   }
 }
