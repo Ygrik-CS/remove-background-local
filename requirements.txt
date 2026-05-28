@@ -4,6 +4,6 @@ Pillow>=10.0.0
 
 
 
-#commands# pip install -r requirements.txt
+#commands# pip install -r requirements.txt 
 #node commands# npm install
 #run# npm run dev 
