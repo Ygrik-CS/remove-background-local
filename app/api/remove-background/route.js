@@ -24,10 +24,7 @@ export async function POST(request) {
   const file = formData.get('image');
   const format = formData.get('format') || 'webp';
 
-  if (!file || typeof file === 'string') {
-    return NextResponse.json({ success: false, error: 'Image file is required.' }, { status: 400 });
-  }
-
+  
   const inputPath = path.join(os.tmpdir(), `rembg-input-${randomUUID()}`);
   const outputPath = path.join(os.tmpdir(), `rembg-output-${randomUUID()}.png`);
 

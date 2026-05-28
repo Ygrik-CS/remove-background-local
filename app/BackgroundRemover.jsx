@@ -21,7 +21,6 @@ export default function BackgroundRemover() {
     setError(null);
     setResultImage(null);
 
-    // Единственный try...catch на весь запрос
     try {
       const formData = new FormData();
       formData.append('image', selectedFile);
@@ -32,8 +31,7 @@ export default function BackgroundRemover() {
         body: formData,
       });
 
-      // Если ответ не JSON, встроенный парсер бросит ошибку, 
-      // и мы поймаем её во внешнем catch.
+
       const data = await response.json();
 
       if (!response.ok || !data?.success) {
