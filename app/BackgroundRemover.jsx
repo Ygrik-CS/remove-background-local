@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import UploadZone from './components/UploadZone';
 
 export default function BackgroundRemover() {
   const [selectedFile, setSelectedFile] = useState(null);
@@ -10,8 +11,10 @@ export default function BackgroundRemover() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState(null);
 
-  const handleFileChange = (e) => {
-    setSelectedFile(e.target.files[0]);
+  const handleFileSelect = (file) => {
+    setSelectedFile(file);
+    setResultImage(null);
+    setError(null);
   };
 
   const handleUpload = async () => {
@@ -54,33 +57,21 @@ export default function BackgroundRemover() {
       <h2 className="text-xl font-semibold">Обработка фото товаров</h2>
       
       <div className="flex flex-col gap-4 w-full max-w-md bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-        <input 
-          type="file" 
-          accept="image/*"
-          onChange={handleFileChange}
-          className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 w-full"
-        />
         
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-gray-700">Формат результата:</label>
-          <select 
-            value={outputFormat} 
-            onChange={(e) => setOutputFormat(e.target.value)}
-            className="p-2 border border-gray-300 rounded-md bg-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="webp">WebP (С прозрачностью, легкий)</option>
-            <option value="png">PNG (С прозрачностью, высокое качество)</option>
-            <option value="jpeg">JPEG (С белым фоном)</option>
-          </select>
-        </div>
+        <UploadZone onFileSelect={handleFileSelect} />
+        
+        {selectedFile && (
+          <div className="text-sm text-gray-700 bg-gray-100 px-4 py-2 rounded-md">
+            Выбран файл: <span className="font-semibold">{selectedFile.name}</span>
+          </div>
+        )}
         
         <button 
           onClick={handleUpload}
           disabled={!selectedFile || isProcessing}
-          suppressHydrationWarning
           className="w-full mt-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
         >
-          {isProcessing ? 'Удаляем фон...' : 'Загрузить и обработать'}
+          {isProcessing ? 'Удаляем фон...' : 'удалить фон'}
         </button>
       </div>
 
