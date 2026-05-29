@@ -6,7 +6,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body>{children}</body>
+      <body style={{ margin: 0, background: '#ffffff' }}>
+        {children}
+      </body>
     </html>
   );
 }
+
